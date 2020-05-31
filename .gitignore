@@ -1,0 +1,6 @@
+api-connectors
+.vscode
+__pycache__
+
+logs
+scratch/*.csv
