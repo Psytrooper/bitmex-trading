@@ -56,7 +56,8 @@ Create Table: CREATE TABLE `positions` (
   PRIMARY KEY (`pid`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=latin1;
 
-Create Table: CREATE TABLE `tradeBin1m` (
+
+CREATE TABLE `tradeBin1m` (
   `timestamp_dt` datetime NOT NULL,
   `symbol` varchar(255) NOT NULL,
   `open_px` decimal(16,6) DEFAULT NULL,

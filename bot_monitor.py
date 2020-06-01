@@ -11,6 +11,7 @@ import configparser
 
 from logging.handlers import RotatingFileHandler
 
+
 def publish_through_boto3(notification):
         try:
             logger.info(notification)
@@ -19,6 +20,7 @@ def publish_through_boto3(notification):
         except Exception:
             logger.info(traceback2.format_exc())
             sys.exit(1)
+
 
 def try_starting_bot():
     logger.info("Trying To Start The Bot.")

@@ -4,3 +4,6 @@ __pycache__
 
 logs
 scratch/*.csv
+.idea/
+data/
+config/

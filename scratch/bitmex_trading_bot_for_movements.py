@@ -3,17 +3,13 @@ import bitmex
 import configparser
 import json
 import logging
-import pandas as pd
-import pymysql
 import sys
-import time, threading
+import threading
 import traceback2
-import websockets
-import signal
 
 from datetime import datetime
 from numpy import sign
-from MySqlDataStore import get_mysql_connection
+from src.MySqlDataStore import get_mysql_connection
 
 # Read configuration.
 config = configparser.ConfigParser()

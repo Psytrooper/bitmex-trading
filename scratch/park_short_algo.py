@@ -9,8 +9,6 @@ import pandas as pd
 import numpy as np
 import datetime
 import time
-import matplotlib.pyplot as plt
-import seaborn as sns
 import math
 
 
@@ -184,7 +182,3 @@ trade_exits.cum_pnl.plot()
 
 
 # In[ ]:
-
-
-
-

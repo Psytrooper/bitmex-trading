@@ -2,13 +2,13 @@ import asyncio
 import configparser
 import iso8601
 import json
-import logging
 import sys
-import time, threading
+import threading
 import traceback2
 import websockets
-import signal
-from MySqlDataStore import get_mysql_connection
+from src.MySqlDataStore import get_mysql_connection
+
+from src.utils.logger import BitmexLogger
 
 # Read configuration.
 config = configparser.ConfigParser()
@@ -19,37 +19,35 @@ defaults = config['DEFAULT']
 use_test_env = defaults.getboolean('bitmex.api.test')
 
 # Logging.
-logger = logging.getLogger("bitmex-websockets-ec2-logger")
-logger.setLevel(logging.INFO)
+logger = BitmexLogger(label="bitmex-websockets-ec2-logger", log_file=defaults.get('log.quotes.outfile')).logger
 
-# Add file and console handlers.
-logger.addHandler(logging.FileHandler(defaults.get('log.quotes.outfile')))
-logger.addHandler(logging.StreamHandler())
 
 # Get connection to MySQL.
 logger.info('Opening connection with MySQL')
 try:
-	connection = get_mysql_connection(defaults)
+    connection = get_mysql_connection(defaults)
 except Exception:
-	logger.error(traceback2.format_exc())
-	sys.exit(1)
+    logger.error(traceback2.format_exc())
+    sys.exit(1)
+
 
 def insert_ticker(symbol, trade_px, bid_px, ask_px, quote_dt, trade_dt):
-	# Midpoint of bid/sell prices.
-	mid_px = (bid_px + ask_px) / 2.0
+    # Midpoint of bid/sell prices.
+    mid_px = (bid_px + ask_px) / 2.0
 
-	# Convert ISO 8601 times for quote/trade to POSIX timestamps (ie, milliseconds since the epoch).
-	# Eg: 1577656569.149 (where 149 is fractional second in units of milliseconds)
-	quote_ms = iso8601.parse_date(quote_dt).timestamp()
-	trade_ms = iso8601.parse_date(quote_dt).timestamp()
-	try:
-		with connection.cursor() as cursor:
-			sql = "INSERT INTO `ticker` (`symbol`, `l`, `b`, `s`, `m`, `trade_dt`, `quote_dt`) VALUES (%s, %s, %s, %s, %s, FROM_UNIXTIME(%s), FROM_UNIXTIME(%s))"
-			logger.info(f'quote_dt:{quote_dt} trade_dt:{trade_dt} symbol:{symbol} trade_px:{trade_px} bid_px:{bid_px} ask_px:{ask_px} mid_px:{mid_px}')
-			cursor.execute(sql, (symbol, trade_px, bid_px, ask_px, mid_px, trade_ms, quote_ms))
-			connection.commit()
-	except Exception:
-		logger.error(traceback2.format_exc())
+    # Convert ISO 8601 times for quote/trade to POSIX timestamps (ie, milliseconds since the epoch).
+    # Eg: 1577656569.149 (where 149 is fractional second in units of milliseconds)
+    quote_ms = iso8601.parse_date(quote_dt).timestamp()
+    trade_ms = iso8601.parse_date(quote_dt).timestamp()
+    try:
+        with connection.cursor() as cursor:
+            sql = "INSERT INTO `ticker` (`symbol`, `l`, `b`, `s`, `m`, `trade_dt`, `quote_dt`) VALUES (%s, %s, %s, %s, %s, FROM_UNIXTIME(%s), FROM_UNIXTIME(%s))"
+            logger.info(f'quote_dt:{quote_dt} trade_dt:{trade_dt} symbol:{symbol} trade_px:{trade_px} bid_px:{bid_px} ask_px:{ask_px} mid_px:{mid_px}')
+            cursor.execute(sql, (symbol, trade_px, bid_px, ask_px, mid_px, trade_ms, quote_ms))
+            connection.commit()
+    except Exception:
+        logger.error(traceback2.format_exc())
+
 
 def setup_timer_for_purge(delay):
     t = threading.Timer(delay, purge_stale_tickers)
@@ -58,16 +56,18 @@ def setup_timer_for_purge(delay):
     except Exception:
         t.cancel()
 
+
 # Every hour, remove tickers that are older than 1 day.
 def purge_stale_tickers():
-	setup_timer_for_purge(3600)
-	try:
-		with connection.cursor() as cursor:
-			sql = "delete from ticker where trade_dt < now() - interval 1 day"
-			cursor.execute(sql)
-			connection.commit()
-	except Exception:
-		logger.error(traceback2.format_exc())
+    setup_timer_for_purge(3600)
+    try:
+        with connection.cursor() as cursor:
+            sql = "delete from ticker where trade_dt < now() - interval 1 day"
+            cursor.execute(sql)
+            connection.commit()
+    except Exception:
+        logger.error(traceback2.format_exc())
+
 
 async def capture_data():
     # Periodically purge stale tickers.
@@ -80,14 +80,13 @@ async def capture_data():
     quote_dt = None
     trade_dt = None
 
-	subdomain = "testnet" if use_test_env else "www"
+    subdomain = "testnet" if use_test_env else "www"
     uri = "wss://{}.bitmex.com/realtime?subscribe=quote:XBTUSD,trade:XBTUSD".format(subdomain)
     async with websockets.connect(uri) as websocket:
         while True:
             # Reconnect if not open.
             if not websocket.open:
                 websocket = await websockets.connect(uri)
-
 
             data = await websocket.recv()
             data = json.loads(data)
@@ -132,14 +131,15 @@ async def capture_data():
                 trade_dt = last_insert['timestamp']
                 trade_px = last_insert['price']
 
-            if quote_dt != None and trade_dt != None:
+            if quote_dt is not None and trade_dt is not None:
                 insert_ticker(last_insert['symbol'], trade_px, bid_px, ask_px, quote_dt, trade_dt)
                 quote_dt = None
                 trade_dt = None
 
+
 async def gracefully_finish(loop):
     # Gracefully shut down database connection on interrupt.
-    if connection != None:
+    if connection is not None:
         connection.close()
 
     # Gracefully terminate ongoing tasks.
@@ -151,6 +151,7 @@ async def gracefully_finish(loop):
         except asyncio.CancelledError:
             logger.info("Task cancelled: %s" % task)   
     loop.stop()
+
 
 event_loop = asyncio.get_event_loop()
 try:
