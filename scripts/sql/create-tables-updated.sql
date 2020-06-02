@@ -1,4 +1,4 @@
-Create Table: CREATE TABLE `decisions` (
+CREATE TABLE `decisions` (
   `timestamp_dt` datetime NOT NULL,
   `symbol` varchar(255) NOT NULL,
   `side` enum('long','short') NOT NULL,
@@ -11,7 +11,7 @@ Create Table: CREATE TABLE `decisions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 
-Create Table: CREATE TABLE `fills` (
+CREATE TABLE `fills` (
   `transaction_dt` datetime NOT NULL,
   `exec_id` varchar(255) NOT NULL,
   `order_id` varchar(255) NOT NULL,
@@ -31,7 +31,7 @@ Create Table: CREATE TABLE `fills` (
   PRIMARY KEY (`exec_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
-Create Table: CREATE TABLE `orders` (
+CREATE TABLE `orders` (
   `order_id` varchar(255) NOT NULL,
   `symbol` varchar(255) NOT NULL,
   `price` decimal(16,6) DEFAULT NULL,
@@ -46,7 +46,7 @@ Create Table: CREATE TABLE `orders` (
 
 
 
-Create Table: CREATE TABLE `positions` (
+CREATE TABLE `positions` (
   `pid` int(11) NOT NULL AUTO_INCREMENT,
   `symbol` varchar(255) NOT NULL,
   `current_qty` int(11) NOT NULL,

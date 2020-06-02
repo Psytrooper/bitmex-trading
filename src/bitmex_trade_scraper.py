@@ -62,7 +62,7 @@ class BitmexTradeScraper:
                 self.connection.commit()
         except Exception as e:
             self.logger.warning(e)
-            self.logger.error(traceback2.format_exc())
+            self.logger.error(traceback2.format_exc())  # same time occurred
 
     def get_max_timestamp_of_trade_buckets(self):
         self.logger.info('Reading max timestamp of existing trade buckets')
@@ -185,21 +185,21 @@ class BitmexTradeScraper:
         self.logger.info("Got Interrupt Signal. Gracefully Closing Scraper.")
         self.logger.info("Scraper Closed....")
 
-
-if __name__ == '__main__':
-    import configparser
-    import queue
-    import os
-
-    from src.settings import WORK_DIR
-    from src.MySqlDataStore import get_mysql_connection
-
-    # Read configuration.
-    _config = configparser.ConfigParser()
-    _config.read(os.path.join(WORK_DIR, 'config/bitmex_bot_0.ini'))
-
-    _defaults = _config['TEST']
-    _tradeSignal = queue.Queue(2)
-    _connection = get_mysql_connection(_defaults)
-
-    BitmexTradeScraper(_defaults, _tradeSignal, connection=_connection).start_scrapping()
+#
+# if __name__ == '__main__':
+#     import configparser
+#     import queue
+#     import os
+#
+#     from src.settings import WORK_DIR
+#     from src.MySqlDataStore import get_mysql_connection
+#
+#     # Read configuration.
+#     _config = configparser.ConfigParser()
+#     _config.read(os.path.join(WORK_DIR, 'config/bitmex_bot_0.ini'))
+#
+#     _defaults = _config['TEST']
+#     _tradeSignal = queue.Queue(2)
+#     _connection = get_mysql_connection(_defaults)
+#
+#     BitmexTradeScraper(_defaults, _tradeSignal, connection=_connection).start_scrapping()

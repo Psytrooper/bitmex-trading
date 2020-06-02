@@ -12,20 +12,16 @@ from matplotlib import pyplot as plt
 from src.utils.BitmexBotUtils import StatusCode, ShouldPlaceOrderCode
 from src.utils.logger import BitmexLogger
 from src.utils.aws_sns_boto3 import AwsSnsBoto3
-from src.MySqlDataStore import ConnectionWrapper
 
 
-class BitmexTradingBot:
+class TradingBot:
 
-    def __init_logger__(self, config):
-        self.logger = BitmexLogger(label='bot', log_file=config.get('log.mysql.outfile')).logger
-
-    def __init__(self, config, signal_queue):
+    def __init__(self, config, signal_queue, connection):
         self.defaults = config  # default: holds the configurations object.
         self.signal_queue = signal_queue
 
         # logger configuration.
-        self.__init_logger__(self.defaults)
+        self.logger = BitmexLogger(label='bot', log_file=self.defaults.get('log.trading.outfile')).logger
 
         self.logger.info("Bot: Connecting to Bitmex....")
         self.bitmex_client = bitmex.bitmex(
@@ -35,7 +31,7 @@ class BitmexTradingBot:
         )
 
         # mysql connection
-        self.connection = ConnectionWrapper(self.defaults)
+        self.connection = connection
 
         # aws sns instance
         self.logger.info('Instance SNS handler (AWS SDK)')
@@ -47,8 +43,8 @@ class BitmexTradingBot:
     def start_trading(self):
         while True:
             # if self.signal_queue.get() is not None:
-            #     self.logger.info("Got trade bucket from signal_queue.")
 
+            self.logger.info("Got trade bucket from signal_queue.")
             try:
                 self.conditionally_trade()
             except Exception as e:
@@ -133,10 +129,7 @@ class BitmexTradingBot:
         now = datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
         try:
             # XXX should use prepared statement, but params argument to pd.read() did not work.
-            # read sub columns
-            # sql = f"SELECT timestamp_dt, close_px, high_px, low_px, home_notional FROM tradeBin1m WHERE symbol = '{symbol}' AND timestamp_dt >= (FROM_UNIXTIME({now}) - interval {ndays} day) ORDER BY timestamp_dt ASC"
-            # read entire columns
-            sql = f"SELECT timestamp_dt, symbol, open_px, high_px, low_px, close_px, trades, volume, vwap, last_size, turnover, home_notional, foreign_notional FROM tradeBin1m WHERE symbol = '{symbol}' AND timestamp_dt >= (FROM_UNIXTIME({now}) - interval {ndays} day) ORDER BY timestamp_dt ASC"
+            sql = f"SELECT timestamp_dt, close_px, high_px, low_px, home_notional FROM tradeBin1m WHERE symbol = '{symbol}' AND timestamp_dt >= (FROM_UNIXTIME({now}) - interval {ndays} day) ORDER BY timestamp_dt ASC"
             df = pd.read_sql(sql, self.connection)
         except Exception as e:
             self.logger.warning(e)
@@ -314,14 +307,16 @@ class BitmexTradingBot:
         stop_px = self.get_stop_threshold(reference_px, side)
 
         # Set trigger and limit price equal; as these are away from the market, we should be paid maker fees.
-        self.logger.info(f'Placing stop order: symbol:{symbol} quantity:{quantity} entry_px:{entry_px} decision_px:{decision_px} stop_px:{stop_px}')
+        self.logger.info(
+            f'Placing stop order: symbol:{symbol} quantity:{quantity} entry_px:{entry_px} decision_px:{decision_px} stop_px:{stop_px}')
 
         # Support up to 5 retries in case Bitmex rejects our order due to load-shedding policy.
         attempts, new_stop_order = 0, None
         while attempts < 5 and not new_stop_order:
             self.logger.info(f'Attempt to place order on attempt:{attempts}')
             try:
-                new_stop_order = self.bitmex_client.Order.Order_new(symbol=symbol, orderQty=quantity, ordType='Stop', stopPx=stop_px).result()
+                new_stop_order = self.bitmex_client.Order.Order_new(symbol=symbol, orderQty=quantity, ordType='Stop',
+                                                                    stopPx=stop_px).result()
                 # Retry if order Canceled; otherwise, break.
                 if new_stop_order[0]['ordStatus'] != 'Canceled':
                     break
@@ -458,8 +453,7 @@ class BitmexTradingBot:
     def reconcile_positions_with_decision_logs(self):
         self.logger.info('Reconciling positions with decision logs')
         try:
-            res = self.bitmex_client.Position.Position_get(filter=json.dumps({'symbol': 'XBTUSD'}))
-            positions = res.result()
+            positions = self.bitmex_client.Position.Position_get(filter=json.dumps({'symbol': 'XBTUSD'})).result()
         except Exception as e:
             self.logger.warning(e)
             self.logger.error(traceback2.format_exc())
@@ -645,11 +639,7 @@ class BitmexTradingBot:
         threshold = self.defaults.getfloat('bitmex.tradebot.decision.short.threshold', 3)
         last_idx = len(df.index) - 1
         self.logger.info(
-            f'df.ma_comps.iloc[last_idx]:{df.ma_comps.iloc[last_idx]} '
-            f'df.close_px.iloc[last_idx]:{df.close_px.iloc[last_idx]} '
-            f'df.close_px.iloc[last_idx-1]:{df.close_px.iloc[last_idx - 1]} '
-            f'df.ma_20_days.iloc[last_idx]:{df.ma_20_days.iloc[last_idx]} '
-            f'threshold:{threshold}')
+            f'df.ma_comps.iloc[last_idx]:{df.ma_comps.iloc[last_idx]} df.close_px.iloc[last_idx]:{df.close_px.iloc[last_idx]} df.close_px.iloc[last_idx-1]:{df.close_px.iloc[last_idx - 1]} df.ma_20_days.iloc[last_idx]:{df.ma_20_days.iloc[last_idx]} threshold:{threshold}')
 
         # Default decision position/px in case no trade takes place below.
         last_px = decisions[-1]['price'] if len(decisions) else 0
@@ -719,7 +709,7 @@ class BitmexTradingBot:
         self.make_long_trading_decision(df)
 
         # Consider short trade.
-        self.make_short_trading_decision(df)
+        # self.make_short_trading_decision(df)
 
         # Update any new fills and positions.
         self.reconcile_fills_and_positions_after_delay(3)
@@ -736,6 +726,7 @@ if __name__ == '__main__':
     import os
 
     from src.settings import WORK_DIR
+    from src.MySqlDataStore import get_mysql_connection
 
     # Read configuration.
     _config = configparser.ConfigParser()
@@ -743,8 +734,7 @@ if __name__ == '__main__':
 
     _defaults = _config['TEST']
     _tradeSignal = queue.Queue(2)
-    # _connection = get_mysql_connection(_defaults)
+    _connection = get_mysql_connection(_defaults)
 
     _tradeSignal.put(True)  # start
-    bot = BitmexTradingBot(_defaults, _tradeSignal)
-    bot.start_trading()
+    BitmexTradingBot(_defaults, _tradeSignal, connection=_connection).start_trading()

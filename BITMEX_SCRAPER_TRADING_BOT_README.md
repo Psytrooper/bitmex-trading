@@ -26,6 +26,10 @@ Cretea the below Tables in configured Database.
 
     $ mysql -u username -p password database_name < ./scripts/sql/create-tables-updated.sql
     
+    $ mysql -u test -h localhost -p
+    use samellasneed
+     samellasneed < ./scripts/sql/create-tables-updated.sql
+    
     bitmex\scripts\sql\create-tables-updated.sql
     /home/ec2-user/bitmex/scripts/sql/create-tables-updated.sql
 
@@ -53,7 +57,7 @@ On every update form the bitmex to scraper, scraper will raise an event as **UPD
 *Note: Bot will be taking decisons every minute.
 
 ## Launching the trading bot.
-    nohup python3 ./bitmex_scraper_trading_bot.py --instance 2 2>&1 &> /dev/null &
+    nohup python3 ./bitmex_scraper_trading_bot.py --instance 0 2>&1 &> /dev/null &    
 
 ## Stopping the scraper and the bot.
     kill -15 $(ps aux | grep '[b]itmex_scraper_trading_bot.py' | awk '{print $2}') 

@@ -3,8 +3,10 @@
 asyncio==3.4.3
 bitmex==0.2.2
 boto3==1.11.5
-bravado==10.4.3
-bravado-core==5.16.0
+# bravado==10.4.3
+# bravado-core==5.16.0
+bravado
+bravado-core
 configparser==4.0.2
 iso8601==0.1.12
 pandas==0.25.3
@@ -12,4 +14,6 @@ psutil==5.7.0
 PyMySQL==0.9.3
 traceback2==1.4.0
 websockets==8.1
-numpy
+numpy~=1.18.4
+matplotlib~=3.2.1
+requests~=2.23.0

@@ -21,16 +21,17 @@ def get_mysql_connection(config):
 
 class ConnectionWrapper:
 
-    def __init_logger__(self):
-        self.logger = BitmexLogger(label='mysql', log_file=self.config.get('log.mysql.outfile')).logger
-
     def __init__(self, config):
         self.config = config
         self.retryWaitSec = 2
         self.lock = threading.RLock()
+
         self.__connect__(config)
         # Logging.
-        self.__init_logger__()
+        self.__init_logger__(config)
+
+    def __init_logger__(self, config):
+        self.logger = BitmexLogger(label='mysql', log_file=config.get('log.mysql.outfile')).logger
 
     def __connect__(self, config):
         db_user = config.get('db.user')
