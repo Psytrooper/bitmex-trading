@@ -7,3 +7,5 @@ LOG_DIR = os.path.join(WORK_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 CONF_DIR = os.path.join(WORK_DIR, "config")
+
+MODEL_DIR = os.path.join(WORK_DIR, "models")

@@ -6,7 +6,7 @@ import sys
 import threading
 import traceback2
 import websockets
-from src.MySqlDataStore import get_mysql_connection
+from src.utils.MySqlDataStore import get_mysql_connection
 
 from src.utils.logger import BitmexLogger
 

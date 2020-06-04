@@ -11,6 +11,10 @@ from datetime import timezone as timezone
 from src.utils.logger import BitmexLogger
 
 
+TWENTY_ONE_DAYS = 21 * 24 * 60 * 60
+TWO_HOURS = 2 * 60 * 60
+
+
 class BitmexTradeScraper:
 
     def __init_logger__(self):
@@ -28,7 +32,7 @@ class BitmexTradeScraper:
             api_secret=self.defaults.get('bitmex.tradebuckets.api.secret')
         )
         self.connection = connection
-        self.logger.info("################## Scraper Statred ##################")
+        self.logger.info("################## Scraper Started ##################")
 
     def start_scrapping(self):
         self.logger.info("scraper Started.....")
@@ -81,7 +85,7 @@ class BitmexTradeScraper:
     # By default, fill gaps through last 21 days in our data store for trade-buckets.
     # XXX If we have been offline for > 21 days, then horizon is extended further out
     # to begin right after the last historical trade bucket. (Maybe we don't need to do this.)
-    def fill_gaps(self, horizon=21 * 24 * 60 * 60):
+    def fill_gaps(self, horizon=TWENTY_ONE_DAYS):
         now = datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
         self.logger.info(f'Fill gaps in trade buckets through {now}')
 
@@ -113,7 +117,7 @@ class BitmexTradeScraper:
             if trades:  # and status_code == 200
                 for k in range(0, len(trades)):
                     self.insert_trade_bucket(trades[k])
-                start_time = start_time + 2 * 60 * 60
+                start_time = start_time + TWO_HOURS
 
             # Sleep to avoid API rate limit violations.
             time.sleep(2)
@@ -146,8 +150,8 @@ class BitmexTradeScraper:
                         when_outage_occurred = datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
                     # Cushion gap to fill by 5 minutes before occurrence of outage.
                     now = datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
-                    horizon: float = now - when_outage_occurred + 5 * 60
-                    self.fill_gaps(horizon)
+                    horizon = now - when_outage_occurred + 5 * 60
+                    self.fill_gaps(int(horizon))
                     continue
 
                 # Grok JSON.
@@ -173,8 +177,7 @@ class BitmexTradeScraper:
                 last_insert = data['data'][-1]
 
                 # (timestamp, symbol) is our primary key for trade buckets, so skip any records in which those are missing.
-                if 'timestamp' not in last_insert \
-                        or 'symbol' not in last_insert or last_insert['symbol'] != 'XBTUSD':
+                if 'timestamp' not in last_insert or 'symbol' not in last_insert or last_insert['symbol'] != 'XBTUSD':
                     continue
 
                 last_insert['timestamp'] = iso8601.parse_date(last_insert['timestamp'])

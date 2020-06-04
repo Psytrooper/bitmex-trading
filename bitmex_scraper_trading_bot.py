@@ -8,9 +8,8 @@ import signal
 import queue
 
 
-from src.MySqlDataStore import get_mysql_connection
+from src.utils.MySqlDataStore import get_mysql_connection
 from src.bitmex_trade_scraper import BitmexTradeScraper
-from src.bitmex_trading_bot import BitmexTradingBot
 
 
 def is_delta_ok(delta, use_absolute):
